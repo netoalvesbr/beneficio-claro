@@ -32,7 +32,7 @@ Uma aplicação web, gratuita e sem cadastro, que:
 ## Como executar
 
 ```bash
-git clone https://github.com/<seu-usuario>/beneficio-claro.git
+git clone https://github.com/netoalvesbr/beneficio-claro.git
 cd beneficio-claro/prototipo
 # abra o index.html no navegador
 ```
