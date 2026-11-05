@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benefício Claro – Triagem Previdenciária (protótipo)</title>
+<style>
+  :root{--bg:#f5f7fa;--card:#fff;--ink:#1c2733;--muted:#5b6b7b;--brand:#0b5cad;--ok:#1b7f4b;--warn:#b26a00;--line:#dde3ea}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  header{background:var(--brand);color:#fff;padding:24px 16px}
+  header h1{margin:0;font-size:1.5rem}
+  header p{margin:4px 0 0;opacity:.9}
+  main{max-width:760px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
+  label{display:block;font-weight:600;margin:14px 0 4px}
+  input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:1rem;background:#fff}
+  button{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:12px 20px;font-size:1rem;cursor:pointer;margin-top:18px}
+  button:hover{filter:brightness(1.1)}
+  .result{border-left:5px solid var(--brand)}
+  .result.ok{border-left-color:var(--ok)}
+  .result.warn{border-left-color:var(--warn)}
+  .result h3{margin:0 0 6px}
+  .tag{display:inline-block;font-size:.78rem;padding:2px 8px;border-radius:999px;background:#e6f0fa;color:var(--brand);margin-bottom:6px}
+  ul{padding-left:20px;margin:6px 0}
+  .aviso{font-size:.85rem;color:var(--muted)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:560px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Benefício Claro</h1>
+  <p>Descubra, em linguagem simples, quais benefícios do INSS podem se aplicar ao seu caso.</p>
+</header>
+<main>
+  <section class="card">
+    <form id="f">
+      <div class="row">
+        <div>
+          <label for="sexo">Sexo</label>
+          <select id="sexo"><option value="F">Feminino</option><option value="M">Masculino</option></select>
+        </div>
+        <div>
+          <label for="idade">Idade</label>
+          <input id="idade" type="number" min="0" max="120" required>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="contrib">Meses de contribuição ao INSS</label>
+          <input id="contrib" type="number" min="0" required placeholder="Ex.: 120 (10 anos)">
+        </div>
+        <div>
+          <label for="vinculo">Situação atual</label>
+          <select id="vinculo">
+            <option value="empregado">Empregado(a) com carteira assinada</option>
+            <option value="ci">Autônomo / contribuinte individual</option>
+            <option value="facultativo">Contribuinte facultativo (ex.: dona de casa)</option>
+            <option value="rural">Trabalhador rural / segurado especial</option>
+            <option value="nenhum">Sem contribuir atualmente</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="situacao">O que aconteceu?</label>
+          <select id="situacao">
+            <option value="nada">Quero saber sobre aposentadoria</option>
+            <option value="doenca">Doença ou acidente que me impede de trabalhar</option>
+            <option value="filho">Gestação, parto ou adoção</option>
+            <option value="vulneravel">Idoso/deficiência com família de baixa renda</option>
+          </select>
+        </div>
+        <div>
+          <label for="renda">Renda mensal da família ÷ nº de pessoas (R$)</label>
+          <input id="renda" type="number" min="0" step="0.01" placeholder="Opcional – para o BPC">
+        </div>
+      </div>
+      <button type="submit">Ver possibilidades</button>
+    </form>
+  </section>
+
+  <section id="out"></section>
+
+  <p class="aviso">Ferramenta educativa e simplificada, sem caráter de consultoria jurídica. Regras de transição, tempo especial, tempo rural e outras particularidades não são consideradas. Procure o INSS (Meu INSS / 135) ou um profissional da área previdenciária para análise do seu caso concreto.</p>
+</main>
+
+<script>
+const SM = 1621; // salário mínimo de referência (ajuste conforme o ano vigente)
+
+function avaliar(d){
+  const r = [];
+  const meses = d.contrib;
+
+  if (d.situacao === "nada"){
+    const idadeMin = d.sexo === "F" ? 62 : 65;
+    const falta = Math.max(0, idadeMin - d.idade);
+    const carencia = 180;
+    const okIdade = d.idade >= idadeMin, okCar = meses >= carencia;
+    r.push({
+      tipo: okIdade && okCar ? "ok" : "warn",
+      tag: "Aposentadoria por idade (regra geral)",
+      titulo: okIdade && okCar ? "Você parece atender aos requisitos básicos" : "Ainda faltam requisitos",
+      itens: [
+        `Idade mínima: ${idadeMin} anos — ${okIdade ? "atendida" : `faltam cerca de ${falta} ano(s)`}.`,
+        `Carência mínima: 180 contribuições (15 anos) — ${okCar ? "atendida" : `faltam ${carencia - meses} mês(es)`}.`,
+        "Documentos úteis: documento com foto, CPF, CNIS, carteira de trabalho e carnês/guias pagos."
+      ]
+    });
+  }
+
+  if (d.situacao === "doenca"){
+    const carOk = meses >= 12;
+    r.push({
+      tipo: carOk && d.vinculo !== "nenhum" ? "ok" : "warn",
+      tag: "Auxílio por incapacidade temporária",
+      titulo: "Possibilidade de auxílio por incapacidade",
+      itens: [
+        `Carência usual: 12 contribuições — ${carOk ? "atendida" : "não atendida (há exceções para acidentes e algumas doenças graves)"}.`,
+        d.vinculo === "nenhum" ? "Atenção: é preciso manter a qualidade de segurado (período de graça)." : "Qualidade de segurado aparentemente mantida.",
+        "Documentos úteis: laudos e atestados médicos recentes, exames, receitas, CNIS e documento com foto.",
+        "É necessária perícia médica do INSS."
+      ]
+    });
+  }
+
+  if (d.situacao === "filho"){
+    const sem = d.vinculo === "empregado";
+    const carOk = meses >= 10;
+    r.push({
+      tipo: sem || carOk ? "ok" : "warn",
+      tag: "Salário-maternidade",
+      titulo: "Possibilidade de salário-maternidade",
+      itens: [
+        sem ? "Empregada com carteira assinada: em regra não há carência." : `Demais seguradas: carência usual de 10 contribuições — ${carOk ? "atendida" : "não atendida (há regras de redução em caso de parto antecipado)"}.`,
+        "Documentos úteis: certidão de nascimento ou termo de adoção/guarda, documento com foto, CPF e comprovantes de contribuição ou de atividade rural."
+      ]
+    });
+  }
+
+  if (d.situacao === "vulneravel"){
+    const limite = SM / 4;
+    const temRenda = !isNaN(d.renda);
+    const okRenda = temRenda && d.renda <= limite;
+    r.push({
+      tipo: okRenda && d.idade >= 65 ? "ok" : "warn",
+      tag: "BPC/LOAS (benefício assistencial)",
+      titulo: "Possibilidade de BPC",
+      itens: [
+        `Perfil: idoso com 65 anos ou mais, ou pessoa com deficiência de longo prazo — ${d.idade >= 65 ? "critério de idade atendido" : "para menores de 65 anos é preciso comprovar deficiência"}.`,
+        temRenda ? `Renda per capita informada: R$ ${d.renda.toFixed(2)}. Limite de referência (1/4 do salário mínimo): R$ ${limite.toFixed(2)} — ${okRenda ? "dentro do limite" : "acima do limite (há exceções avaliadas caso a caso)"}.` : "Informe a renda per capita para comparar com o limite de 1/4 do salário mínimo.",
+        "Exige inscrição no CadÚnico atualizado. O BPC não exige contribuição ao INSS."
+      ]
+    });
+  }
+  return r;
+}
+
+document.getElementById("f").addEventListener("submit", e => {
+  e.preventDefault();
+  const d = {
+    sexo: sexo.value, idade: +idade.value, contrib: +contrib.value,
+    vinculo: vinculo.value, situacao: situacao.value,
+    renda: parseFloat(renda.value)
+  };
+  const out = document.getElementById("out");
+  out.innerHTML = "";
+  avaliar(d).forEach(x => {
+    const c = document.createElement("div");
+    c.className = "card result " + x.tipo;
+    const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = x.tag;
+    const h = document.createElement("h3"); h.textContent = x.titulo;
+    const ul = document.createElement("ul");
+    x.itens.forEach(t => { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
+    c.append(tag, h, ul);
+    out.appendChild(c);
+  });
+  out.scrollIntoView({behavior:"smooth"});
+});
+</script>
+</body>
+</html>
